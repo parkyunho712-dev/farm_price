@@ -68,7 +68,6 @@ if(F.some(f=>f.mk===mk&&f.q===q)){$('#msg').textContent='이미 저장되어 있
 F.push({mk,mn:mkName||(rows[0]&&rows[0].whsl_mrkt_nm)||'',q});sf();drawF();$('#msg').textContent='즐겨찾기에 저장했습니다'}
 function delF(i){if(confirm('즐겨찾기를 삭제할까요?')){F.splice(i,1);sf();drawF()}}
 function useF(i){const f=F[i];ex=false;$('#mk').value=f.mk;$('#q').value=f.q;mkName=f.mn;load()}
-drawF();
 function pick(){const v=$('#it').value;$('#q').value=v;ex=!!v;draw()}
 function typ(){ex=false;const q=$('#q').value.trim();$('#it').value=[...$('#it').options].some(o=>o.value===q)?q:'';draw()}
 function fillIt(){const m=new Map();rows.forEach(o=>{const k=o.corp_gds_item_nm;if(k)m.set(k,(m.get(k)||0)+1)});
@@ -121,4 +120,5 @@ if(!rows.length&&!bad)m.textContent='0건입니다. 날짜(어제 버튼)나 시
 $('#list').innerHTML=r.slice(0,500).map(o=>{const v=o.corp_gds_vrty_nm&&o.corp_gds_vrty_nm!==o.corp_gds_item_nm?' ('+esc(o.corp_gds_vrty_nm)+')':'';
 const un=nu(o.unit_qty)+String(o.unit_nm??''),qt=num(o.qty),tg=[o.pkg_nm&&'📦 '+o.pkg_nm,qt&&'수량 '+qt.toLocaleString('ko-KR'),o.plor_nm&&'📍 '+o.plor_nm,hm(o.scsbd_dt)&&'🕐 '+hm(o.scsbd_dt)].filter(Boolean);
 return`<div class="row"><div class="nm">${esc(o.corp_gds_item_nm)}${v}</div><div class="pr">${won(o.scsbd_prc)}${un?'<span class="pu"> / '+esc(un)+'</span>':''}</div>${tg.length?'<div class="tg">'+tg.map(t=>'<span>'+esc(t)+'</span>').join('')+'</div>':''}<small>${[o.whsl_mrkt_nm,o.corp_nm].filter(Boolean).map(esc).join(' · ')}</small></div>`}).join('')}
+drawF();
 </script></body></html>
