@@ -36,12 +36,14 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .sg b{display:block;font-size:1.2rem;font-weight:800}
 .sg .av b{font-size:1.7rem;color:var(--ac)}
 .sg .lo b{color:var(--lo)}.sg .hi b{color:var(--hi)}
-#cal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9}
+#cal,#dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9}
 .cb{background:var(--bg);border-radius:1em;padding:.8em;width:94%;max-width:32rem}
 .cb .fx b{flex:2;text-align:center;font-size:1.2rem;align-self:center}
 .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:.25em;margin:.5em 0}
 .cg button{margin:0;padding:.65em 0;font-size:1.2rem;background:var(--card);color:var(--fg)}
 .cg button.sel{background:var(--ac);color:#fff}
+.dm{font-size:1.4rem;font-weight:700;text-align:center;margin:.6em 0 1em;white-space:pre-line;line-height:1.5}
+#dlg button{padding:.9em;font-size:1.3rem}
 .cg .dw{text-align:center;font-size:.9rem;color:var(--mu)}
 </style></head><body>
 <div class="hd"><h1>🥬 농산물 경매가</h1><button class="sm" onclick="tog()">⚙ 설정</button></div>
@@ -67,6 +69,7 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 <button class="g" onclick="addF()">⭐ 지금 선택을 즐겨찾기에 저장</button>
 <select id="so" onchange="draw()"><option value="d">가격 높은순</option><option value="a">가격 낮은순</option><option value="t">시간순</option></select>
 <div id="msg"></div><div id="sum"></div><div id="list"></div>
+<div id="dlg" hidden><div class="cb"><div id="dm" class="dm"></div><div class="fx"><button class="g" onclick="dno()">아니오</button><button onclick="dyes()">예</button></div></div></div>
 <div id="cal" hidden><div class="cb">
 <div class="fx"><button class="g" onclick="cm(-1)">◀</button><b id="ct"></b><button class="g" onclick="cm(1)">▶</button></div>
 <div id="cg" class="cg"></div><button class="g" onclick="$('#cal').hidden=true">닫기</button></div></div>
@@ -110,7 +113,11 @@ if(F.some(f=>f.mk===mk&&f.q===iq&&f.co===co&&(f.l||'')===lq&&(f.m||'')===mq)){$(
 const cn=co?(rows.find(o=>o.corp_cd===co)||{}).corp_nm||'':'';
 const r0=rows.find(o=>(!co||o.corp_cd===co)&&(!lq||L(o)===lq)&&(!mq||M(o)===mq)&&(!iq||itm(o)===iq))||{};
 F.push({mk,mn:MN[mk]||mk,l:lq,m:mq,q:iq,co,cn,lcd:lq?r0.gds_lclsf_cd||'':'',mcd:mq?r0.gds_mclsf_cd||'':'',scd:iq?r0.gds_sclsf_cd||'':''});sf();drawF();$('#msg').textContent='즐겨찾기에 저장했습니다'}
-function delF(i){if(confirm('즐겨찾기를 삭제할까요?')){F.splice(i,1);sf();drawF()}}
+let dcb=null;
+function ask(m,cb){$('#dm').textContent=m;dcb=cb;$('#dlg').hidden=false}
+function dyes(){$('#dlg').hidden=true;const f=dcb;dcb=null;if(f)f()}
+function dno(){$('#dlg').hidden=true;dcb=null}
+function delF(i){const f=F[i];ask('['+(f.mn||f.mk)+(f.cn?' · '+f.cn:'')+' · '+(f.q||f.m||f.l||'전체 품목')+']\n즐겨찾기를 삭제할까요?',()=>{F.splice(i,1);sf();drawF()})}
 function useF(i){const f=F[i],e=(k,v)=>v?enc(k)+'='+encodeURIComponent(v):'';
 $('#mk').value=f.mk;co=f.co||'';lq=f.l||'';mq=f.m||'';iq=f.q||'';
 return load([e('corp_cd',f.co),e('gds_lclsf_cd',f.lcd),e('gds_mclsf_cd',f.mcd),e('gds_sclsf_cd',f.scd)].filter(Boolean))}
