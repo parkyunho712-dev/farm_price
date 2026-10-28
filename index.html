@@ -12,53 +12,74 @@ input,select,button{width:100%;padding:10px;margin:4px 0;font-size:15px;border-r
 button{background:var(--ac);color:#fff;border:0;font-weight:600}
 button.g{background:var(--card);color:var(--fg)}
 details{background:var(--card);border-radius:10px;padding:8px 12px;margin:8px 0}
+label{font-size:13px;color:var(--mu)}
 .row{background:var(--card);border-radius:10px;padding:10px 12px;margin:6px 0}
 .row b{font-size:17px}.row small{color:var(--mu);display:block}
 #msg{color:var(--mu);font-size:14px;margin:6px 0}
+#sum{background:var(--card);border-radius:10px;padding:8px 12px;margin:6px 0;display:none}
 </style></head><body>
 <h1>🥬 농산물 경매가</h1>
 <details id="cfg"><summary>API 설정</summary>
-<input id="url" placeholder="API 엔드포인트 URL (https://...)">
-<input id="kp" placeholder="키 파라미터명 (기본 serviceKey)">
-<input id="key" type="password" placeholder="인증키 (디코딩된 원본 키)">
-<input id="ex" placeholder="추가 쿼리 예: pageNo=1&numOfRows=100&_type=json">
-<input id="f1" placeholder="품목 필드명 (비우면 자동 표시)">
-<input id="f2" placeholder="가격 필드명">
-<input id="f3" placeholder="보조 필드명 (시장·단위 등)">
-<button onclick="save()">저장</button>
-<button class="g" onclick="demo()">예시 데이터 보기</button>
+<input id="url" placeholder="API 주소">
+<input id="kp" placeholder="키 파라미터명">
+<input id="key" type="password" placeholder="인증키 (디코딩)">
+<input id="ps" inputmode="numeric" placeholder="페이지 크기 (기본 1000)">
+<button onclick="save();$('#msg').textContent='저장됨'">저장</button>
 </details>
-<button onclick="load()">시세 불러오기</button>
-<input id="q" placeholder="품목 검색" oninput="draw()">
-<select id="so" onchange="draw()"><option value="">정렬 없음</option><option value="d">가격 높은순</option><option value="a">가격 낮은순</option></select>
-<div id="msg"></div><div id="list"></div>
+<label>경매(정산) 일자</label><input id="dt" type="date">
+<label>도매시장 코드</label><input id="mk" inputmode="numeric" placeholder="숫자 코드">
+<button class="g" onclick="findMk()">시장 코드 찾기</button>
+<div id="chips"></div>
+<label>품목 (비우면 전체)</label><input id="q" placeholder="예: 배추" oninput="draw()">
+<button onclick="load()">전체 불러오기</button>
+<select id="so" onchange="draw()"><option value="t">시간순</option><option value="d">가격 높은순</option><option value="a">가격 낮은순</option></select>
+<div id="msg"></div><div id="sum"></div><div id="list"></div>
 <script>
-const $=s=>document.querySelector(s),ids=['url','kp','key','ex','f1','f2','f3'];
-let rows=[];
-try{const c=JSON.parse(localStorage.getItem('cfg')||'{}');ids.forEach(i=>$('#'+i).value=c[i]||'')}catch(e){}
-function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))));$('#msg').textContent='저장됨';$('#cfg').open=false}catch(e){$('#msg').textContent='저장 실패'}}
-function demo(){rows=[{품목:'사과(부사)',가격:'48,000',시장:'가락 · 10kg'},{품목:'배추',가격:'9,500',시장:'가락 · 10kg'},{품목:'양파',가격:'14,200',시장:'구리 · 15kg'}];$('#f1').value='품목';$('#f2').value='가격';$('#f3').value='시장';$('#msg').textContent='예시 데이터입니다(실제 시세 아님)';draw()}
+const $=s=>document.querySelector(s),ids=['url','kp','key','ps','mk','q'];
+const D={url:'https://apis.data.go.kr/B552845/katRealTime2/trades2',kp:'serviceKey',ps:'1000'};
+let C={},rows=[];try{C=JSON.parse(localStorage.getItem('cfg')||'{}')}catch(e){}
+ids.forEach(i=>$('#'+i).value=C[i]||D[i]||'');
+const t=new Date();t.setMinutes(t.getMinutes()-t.getTimezoneOffset());$('#dt').value=t.toISOString().slice(0,10);
+function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))))}catch(e){}}
+const enc=k=>encodeURIComponent('cond['+k+'::EQ]');
+const num=v=>parseFloat(String(v??'').replace(/[^\d.-]/g,''))||0;
+const won=v=>num(v)?num(v).toLocaleString('ko-KR')+'원':'-';
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function find(o,k){if(o&&typeof o==='object'){if(k in o)return o[k];for(const v of Object.values(o)){const r=find(v,k);if(r!==undefined)return r}}}
 function arr(o){if(Array.isArray(o))return o;if(o&&typeof o==='object'){for(const v of Object.values(o)){const r=arr(v);if(r)return r}}return null}
-function parse(t){t=t.trim();if(t[0]==='{'||t[0]==='['){const j=JSON.parse(t);return arr(j)||[j]}
-const x=new DOMParser().parseFromString(t,'text/xml');
-return [...x.querySelectorAll('item')].map(e=>Object.fromEntries([...e.children].map(c=>[c.tagName,c.textContent])))}
+async function page(p,n,extra){
+const u=$('#url').value.trim(),k=$('#key').value.trim();
+const q=[($('#kp').value.trim()||'serviceKey')+'='+encodeURIComponent(k),'returnType=JSON','pageNo='+p,'numOfRows='+n,enc('trd_clcln_ymd')+'='+$('#dt').value,...extra];
+const r=await fetch(u+(u.includes('?')?'&':'?')+q.join('&'));
+let j;try{j=JSON.parse(await r.text())}catch(e){throw new Error('JSON이 아닌 응답입니다')}
+const e=find(j,'returnAuthMsg');if(e)throw new Error(e+' (코드 '+find(j,'returnReasonCode')+')');
+const rc=find(j,'resultCode');if(rc&&rc!=='00'&&rc!==0)throw new Error(find(j,'resultMsg')||'오류 '+rc);
+return{rows:arr(j)||[],total:+find(j,'totalCount')||0}}
+function need(){if(!$('#key').value.trim()){$('#msg').textContent='API 설정에서 인증키를 입력하세요';$('#cfg').open=true;return false}return true}
 async function load(){
-const u=$('#url').value.trim();if(!u){$('#msg').textContent='API 설정에서 URL을 입력하세요';$('#cfg').open=true;return}
-const q=[];const k=$('#key').value.trim();
-if(k)q.push(($('#kp').value.trim()||'serviceKey')+'='+encodeURIComponent(k));
-if($('#ex').value.trim())q.push($('#ex').value.trim());
-$('#msg').textContent='불러오는 중…';
-try{const r=await fetch(u+(u.includes('?')?'&':'?')+q.join('&'));
-const t=typeof r.text==='function'?await r.text():String(r);
-rows=parse(t);$('#msg').textContent=rows.length+'건';draw()}
-catch(e){$('#msg').textContent='실패: '+e.message+' (키·URL·필드 확인, 브라우저에서는 CORS로 막힐 수 있음)'}}
-const num=v=>parseFloat(String(v).replace(/[^\d.-]/g,''))||0;
-function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+save();if(!need())return;
+const mk=$('#mk').value.trim();
+if(!mk){$('#msg').textContent='도매시장 코드를 입력하세요 (시장 코드 찾기 버튼 사용 가능)';return}
+const n=+$('#ps').value||1000;rows=[];$('#list').innerHTML='';$('#sum').style.display='none';
+try{for(let p=1;p<=80;p++){
+const r=await page(p,n,[enc('whsl_mrkt_cd')+'='+encodeURIComponent(mk)]);
+rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/'+r.total+'건';
+if(!r.rows.length||rows.length>=r.total)break}
+draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
+async function findMk(){
+save();if(!need())return;const m=new Map();
+try{for(let p=1;p<=3;p++){const r=await page(p,1000,[]);r.rows.forEach(o=>m.set(o.whsl_mrkt_cd,o.whsl_mrkt_nm));$('#msg').textContent='시장 찾는 중… '+m.size+'곳';if(!r.rows.length)break}
+$('#chips').innerHTML=[...m].map(([c,nm])=>`<button class="g" onclick="$('#mk').value='${esc(c)}';$('#chips').innerHTML=''">${esc(nm)} (${esc(c)})</button>`).join('');
+$('#msg').textContent=m.size+'곳 발견 (일부 시장만 보일 수 있음). 눌러서 선택하세요'}
+catch(e){$('#msg').textContent='실패: '+e.message}}
 function draw(){
-const f1=$('#f1').value.trim(),f2=$('#f2').value.trim(),f3=$('#f3').value.trim(),kw=$('#q').value.trim(),so=$('#so').value;
-let r=rows.filter(o=>!kw||JSON.stringify(o).includes(kw));
-if(so&&f2)r=[...r].sort((a,b)=>so==='d'?num(b[f2])-num(a[f2]):num(a[f2])-num(b[f2]));
-$('#list').innerHTML=r.slice(0,300).map(o=>f1&&o[f1]!==undefined
-?`<div class="row"><b>${esc(o[f1])}</b> · ${esc(o[f2])}<small>${esc(o[f3])}</small></div>`
-:`<div class="row"><small>${Object.entries(o).slice(0,6).map(([k,v])=>esc(k)+': '+esc(v)).join('<br>')}</small></div>`).join('')}
+const q=$('#q').value.trim(),so=$('#so').value,P=o=>num(o.scsbd_prc);
+const r=rows.filter(o=>!q||[o.corp_gds_item_nm,o.corp_gds_vrty_nm,o.gds_sclsf_nm,o.gds_mclsf_nm].some(v=>v&&String(v).includes(q)));
+if(so==='d')r.sort((a,b)=>P(b)-P(a));else if(so==='a')r.sort((a,b)=>P(a)-P(b));else r.sort((a,b)=>String(a.scsbd_dt).localeCompare(String(b.scsbd_dt)));
+const pr=r.map(P).filter(x=>x>0),s=$('#sum');
+if(pr.length){s.style.display='block';s.innerHTML=`<b>${r.length}건</b> · 최저 ${won(Math.min(...pr))} · 평균 ${won(pr.reduce((a,b)=>a+b,0)/pr.length)} · 최고 ${won(Math.max(...pr))}`}else s.style.display='none';
+if(rows.length&&!$('#msg').textContent.startsWith('실패'))$('#msg').textContent='전체 '+rows.length+'건 중 '+r.length+'건 (화면에는 최대 500건)';
+if(!rows.length&&!$('#msg').textContent.startsWith('실패'))$('#msg').textContent='0건입니다. 날짜(전날로)나 시장 코드를 확인하세요';
+$('#list').innerHTML=r.slice(0,500).map(o=>{const v=o.corp_gds_vrty_nm&&o.corp_gds_vrty_nm!==o.corp_gds_item_nm?' ('+esc(o.corp_gds_vrty_nm)+')':'';
+return`<div class="row"><b>${esc(o.corp_gds_item_nm)}</b>${v} · ${won(o.scsbd_prc)}<small>${esc(o.whsl_mrkt_nm)} · ${esc(o.corp_nm)}</small><small>${esc(o.unit_qty)}${esc(o.unit_nm)} · ${esc(o.pkg_nm)} · 수량 ${esc(o.qty)} · ${esc(o.plor_nm)} · ${esc(o.scsbd_dt)}</small></div>`}).join('')}
 </script></body></html>
