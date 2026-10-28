@@ -3,19 +3,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>농산물 경매가</title>
 <style>
-:root{--bg:#fff;--fg:#111;--card:#f1f4ef;--ac:#1b5e20;--mu:#555}
-@media(prefers-color-scheme:dark){:root{--bg:#121412;--fg:#f2f2f2;--card:#1e221d;--ac:#81c784;--mu:#b0b5b0}}
+:root{--bg:#fff;--fg:#111;--card:#f1f4ef;--ac:#1b5e20;--mu:#555;--lo:#1565c0;--hi:#c62828}
+@media(prefers-color-scheme:dark){:root{--bg:#121412;--fg:#f2f2f2;--card:#1e221d;--ac:#81c784;--mu:#b0b5b0;--lo:#64b5f6;--hi:#ef9a9a}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);background:var(--bg);color:var(--fg);font:1rem/1.45 system-ui,sans-serif}
 h1{font-size:1.3rem;margin:.6em 0}
 input,select,button{width:100%;padding:.7em;margin:.25em 0;font-size:1rem;border-radius:.5em;border:1px solid var(--mu);background:var(--bg);color:var(--fg)}
 button{background:var(--ac);color:#fff;border:0;font-weight:700}
 button.g{background:var(--card);color:var(--fg)}
-.fx{display:flex;gap:.4em}.fx>*{flex:1}
-.box{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.5em 0}
-.hd{display:flex;align-items:center;justify-content:space-between;gap:.5em;flex-wrap:wrap}
 button.sm{width:auto;margin:0;padding:.3em .7em;font-size:.8rem;font-weight:400;background:var(--card);color:var(--mu);border:1px solid var(--mu)}
+.fx{display:flex;gap:.4em}.fx>*{flex:1}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:.5em;flex-wrap:wrap}
+.box{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.5em 0}
 label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
+.chips{display:flex;flex-wrap:wrap;gap:.4em;margin:.3em 0}
+.chips button{width:auto;margin:0;padding:.5em .9em;background:var(--card);color:var(--fg);border:1px solid var(--mu);font-weight:600}
+.chips button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .row{background:var(--card);border-radius:.6em;padding:.6em .8em;margin:.4em 0}
 .nm{font-size:1.15rem;font-weight:700}.pr{font-size:1.5rem;font-weight:800;color:var(--ac)}
 .row small{color:var(--mu);display:block;font-size:.85rem}
@@ -23,7 +27,22 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .tg{display:flex;flex-wrap:wrap;gap:.35em;margin:.35em 0}
 .tg span{background:var(--bg);border:1px solid var(--mu);border-radius:1em;padding:.1em .65em;font-size:.85rem}
 #msg{color:var(--mu);margin:.4em 0}
-#sum{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.4em 0;display:none}
+#sum{margin:.5em 0;display:none}
+.cnt{font-size:.85rem;color:var(--mu);margin-bottom:.3em}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:.4em}
+.sg>div{background:var(--card);border-radius:.6em;padding:.5em .4em;text-align:center}
+.sg .av{grid-column:1/-1;border:2px solid var(--ac)}
+.sg span{display:block;font-size:.85rem;color:var(--mu)}
+.sg b{display:block;font-size:1.2rem;font-weight:800}
+.sg .av b{font-size:1.7rem;color:var(--ac)}
+.sg .lo b{color:var(--lo)}.sg .hi b{color:var(--hi)}
+#cal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9}
+.cb{background:var(--bg);border-radius:1em;padding:.8em;width:94%;max-width:32rem}
+.cb .fx b{flex:2;text-align:center;font-size:1.2rem;align-self:center}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:.25em;margin:.5em 0}
+.cg button{margin:0;padding:.65em 0;font-size:1.2rem;background:var(--card);color:var(--fg)}
+.cg button.sel{background:var(--ac);color:#fff}
+.cg .dw{text-align:center;font-size:.9rem;color:var(--mu)}
 </style></head><body>
 <div class="hd"><h1>🥬 농산물 경매가</h1><button class="sm" onclick="tog()">⚙ 설정</button></div>
 <div class="fx"><button class="g" onclick="fs(-1)">글씨 작게</button><button class="g" onclick="fs(1)">글씨 크게</button></div>
@@ -35,53 +54,69 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 <input id="ps" inputmode="numeric" placeholder="페이지 크기 (기본 1000)">
 <button onclick="save();$('#msg').textContent='저장됨';$('#cfg').hidden=true">저장</button>
 </div>
-<label>경매(정산) 일자</label><input id="dt" type="date">
+<label>경매(정산) 일자</label><input id="dt" readonly onclick="openCal()">
 <div class="fx"><button class="g" onclick="setD(0)">오늘</button><button class="g" onclick="setD(-1)">어제</button></div>
-<label>도매시장 코드</label><input id="mk" inputmode="numeric" placeholder="숫자 코드" oninput="mkName=''">
-<button class="g" onclick="findMk()">시장 코드 찾기</button>
-<div id="chips"></div>
-<label>품목 직접 입력 (비우면 전체)</label><input id="q" placeholder="예: 배추" oninput="typ()">
-<button onclick="load()">전체 불러오기</button>
-<label>품목 선택 (불러온 뒤 목록이 나옵니다)</label><select id="it" onchange="pick()"><option value="">전체 품목</option></select>
-<button class="g" onclick="addF()">⭐ 이 시장·품목을 즐겨찾기에 저장</button>
-<select id="so" onchange="draw()"><option value="t">시간순</option><option value="d">가격 높은순</option><option value="a">가격 낮은순</option></select>
+<label>도매시장 (선택하면 자동으로 불러옵니다)</label>
+<select id="mk" onchange="onMk()"></select>
+<div id="cow" hidden><label>도매법인</label><div id="chips" class="chips"></div></div>
+<label>품목 (상품 소분류)</label>
+<select id="it" onchange="iq=this.value;draw()"><option value="">전체 품목</option></select>
+<button class="g" onclick="load()">🔄 다시 불러오기</button>
+<button class="g" onclick="addF()">⭐ 지금 선택을 즐겨찾기에 저장</button>
+<select id="so" onchange="draw()"><option value="d">가격 높은순</option><option value="a">가격 낮은순</option><option value="t">시간순</option></select>
 <div id="msg"></div><div id="sum"></div><div id="list"></div>
+<div id="cal" hidden><div class="cb">
+<div class="fx"><button class="g" onclick="cm(-1)">◀</button><b id="ct"></b><button class="g" onclick="cm(1)">▶</button></div>
+<div id="cg" class="cg"></div><button class="g" onclick="$('#cal').hidden=true">닫기</button></div></div>
 <script>
-const $=s=>document.querySelector(s),ids=['url','kp','key','ps','mk','q'],SZ=[16,19,22,26,30,34];
+const $=s=>document.querySelector(s),ids=['url','kp','key','ps','mk'],SZ=[16,19,22,26,30,34];
 const D={url:'https://apis.data.go.kr/B552845/katRealTime2/trades2',kp:'serviceKey',ps:'1000'};
-let C={},rows=[],F=[],mkName='',si=2,ex=false;
+const MKS='서울특별시|110001 서울가락,110008 서울강서;부산광역시|210001 부산엄궁,210005 부산국제수산,210009 부산반여;대구광역시|220001 대구북부;인천광역시|230001 인천남촌,230003 인천삼산;광주광역시|240001 광주각화,240004 광주서부;대전광역시|250001 대전오정,250003 대전노은;울산광역시|380201 울산;경기도|310101 수원,310401 안양,310901 안산,311201 구리;강원특별자치도|320101 춘천,320201 원주,320301 강릉;충청북도|330101 청주,330201 충주;충청남도|340101 천안;전북특별자치도|350101 전주,350301 익산,350402 정읍;전라남도|360301 순천;경상북도|370101 포항,370401 안동,371501 구미;경상남도|380101 창원팔용,380303 창원내서,380401 진주';
+const MN={};
+let C={},rows=[],F=[],si=2,co='',iq='',cy=0,cmn=0;
 try{C=JSON.parse(localStorage.getItem('cfg')||'{}')}catch(e){}
 try{F=JSON.parse(localStorage.getItem('fav')||'[]')}catch(e){}
 try{si=+localStorage.getItem('fs')||2}catch(e){}
-ids.forEach(i=>$('#'+i).value=C[i]||D[i]||'');
-function fs(d){si=Math.max(0,Math.min(SZ.length-1,si+d));document.documentElement.style.fontSize=SZ[si]+'px';try{localStorage.setItem('fs',si)}catch(e){}}
-fs(0);
-function tog(){$('#cfg').hidden=!$('#cfg').hidden}
-function setD(n){const t=new Date();t.setDate(t.getDate()+n);t.setMinutes(t.getMinutes()-t.getTimezoneOffset());$('#dt').value=t.toISOString().slice(0,10)}
-setD(0);
-function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))))}catch(e){}}
-function sf(){try{localStorage.setItem('fav',JSON.stringify(F))}catch(e){}}
-function drawF(){$('#fav').innerHTML=F.length?'<label>⭐ 즐겨찾기 (누르면 바로 조회)</label>'+F.map((f,i)=>`<div class="fx"><button style="flex:5" onclick="useF(${i})">${esc(f.mn||f.mk)}${f.q?' · '+esc(f.q):' · 전체'}</button><button class="g" style="flex:1" onclick="delF(${i})">✕</button></div>`).join(''):''}
-function addF(){const mk=$('#mk').value.trim(),q=$('#q').value.trim();
-if(!mk){$('#msg').textContent='도매시장 코드를 먼저 입력하세요';return}
-if(F.some(f=>f.mk===mk&&f.q===q)){$('#msg').textContent='이미 저장되어 있습니다';return}
-F.push({mk,mn:mkName||(rows[0]&&rows[0].whsl_mrkt_nm)||'',q});sf();drawF();$('#msg').textContent='즐겨찾기에 저장했습니다'}
-function delF(i){if(confirm('즐겨찾기를 삭제할까요?')){F.splice(i,1);sf();drawF()}}
-function useF(i){const f=F[i];ex=false;$('#mk').value=f.mk;$('#q').value=f.q;mkName=f.mn;load()}
-function pick(){const v=$('#it').value;$('#q').value=v;ex=!!v;draw()}
-function typ(){ex=false;const q=$('#q').value.trim();$('#it').value=[...$('#it').options].some(o=>o.value===q)?q:'';draw()}
-function fillIt(){const m=new Map();rows.forEach(o=>{const k=o.corp_gds_item_nm;if(k)m.set(k,(m.get(k)||0)+1)});
-const l=[...m].sort((a,b)=>a[0].localeCompare(b[0],'ko'));
-$('#it').innerHTML='<option value="">전체 품목 ('+m.size+'종)</option>'+l.map(([k,n])=>`<option value="${esc(k)}">${esc(k)} (${n}건)</option>`).join('');
-const q=$('#q').value.trim();$('#it').value=m.has(q)?q:''}
 const enc=k=>encodeURIComponent('cond['+k+'::EQ]');
 const num=v=>parseFloat(String(v??'').replace(/[^\d.-]/g,''))||0;
 const won=v=>num(v)?Math.round(num(v)).toLocaleString('ko-KR')+'원':'-';
 const nu=v=>{const n=num(v);return n?String(+n.toFixed(2)):''};
 const hm=v=>{v=String(v??'');const m=v.match(/\d{1,2}:\d{2}/);if(m)return m[0];return /^\d{14}$/.test(v)?v.slice(8,10)+':'+v.slice(10,12):''};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const itm=o=>o.gds_sclsf_nm||o.corp_gds_item_nm||'';
 function find(o,k){if(o&&typeof o==='object'){if(k in o)return o[k];for(const v of Object.values(o)){const r=find(v,k);if(r!==undefined)return r}}}
 function arr(o){if(Array.isArray(o))return o;if(o&&typeof o==='object'){for(const v of Object.values(o)){const r=arr(v);if(r)return r}}return null}
+function fs(d){si=Math.max(0,Math.min(SZ.length-1,si+d));document.documentElement.style.fontSize=SZ[si]+'px';try{localStorage.setItem('fs',si)}catch(e){}}
+function tog(){$('#cfg').hidden=!$('#cfg').hidden}
+function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))))}catch(e){}}
+function sf(){try{localStorage.setItem('fav',JSON.stringify(F))}catch(e){}}
+const dstr=n=>{const t=new Date();t.setDate(t.getDate()+n);t.setMinutes(t.getMinutes()-t.getTimezoneOffset());return t.toISOString().slice(0,10)};
+function go(){if($('#mk').value&&$('#key').value.trim())load()}
+function setD(n){$('#dt').value=dstr(n);go()}
+function openCal(){const p=($('#dt').value||dstr(0)).split('-');cy=+p[0];cmn=+p[1]-1;rc();$('#cal').hidden=false}
+function cm(n){cmn+=n;if(cmn<0){cmn=11;cy--}if(cmn>11){cmn=0;cy++}rc()}
+function rc(){$('#ct').textContent=cy+'년 '+(cmn+1)+'월';
+const f=new Date(cy,cmn,1).getDay(),n=new Date(cy,cmn+1,0).getDate(),sv=$('#dt').value;
+let h='일월화수목금토'.split('').map(x=>`<div class="dw">${x}</div>`).join('')+'<div></div>'.repeat(f);
+for(let d=1;d<=n;d++){const v=cy+'-'+String(cmn+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');h+=`<button class="${v===sv?'sel':''}" onclick="pd('${v}')">${d}</button>`}
+$('#cg').innerHTML=h}
+function pd(v){$('#dt').value=v;$('#cal').hidden=true;go()}
+function onMk(){co='';iq='';rows=[];$('#list').innerHTML='';$('#sum').style.display='none';buildCo();fillIt();if($('#mk').value)go();else $('#msg').textContent=''}
+function drawF(){$('#fav').innerHTML=F.length?'<label>⭐ 즐겨찾기 (누르면 바로 조회)</label>'+F.map((f,i)=>`<div class="fx"><button style="flex:5" onclick="useF(${i})">${esc(f.mn||f.mk)}${f.cn?' · '+esc(f.cn):''} · ${esc(f.q||'전체 품목')}</button><button class="g" style="flex:1" onclick="delF(${i})">✕</button></div>`).join(''):''}
+function addF(){const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 먼저 선택하세요';return}
+if(F.some(f=>f.mk===mk&&f.q===iq&&f.co===co)){$('#msg').textContent='이미 저장되어 있습니다';return}
+const cn=co?(rows.find(o=>o.corp_cd===co)||{}).corp_nm||'':'';
+F.push({mk,mn:MN[mk]||mk,q:iq,co,cn});sf();drawF();$('#msg').textContent='즐겨찾기에 저장했습니다'}
+function delF(i){if(confirm('즐겨찾기를 삭제할까요?')){F.splice(i,1);sf();drawF()}}
+function useF(i){const f=F[i];$('#mk').value=f.mk;co=f.co||'';iq=f.q||'';load()}
+function buildCo(){const m=new Map();rows.forEach(o=>{const k=o.corp_cd;if(k){const e=m.get(k)||{n:o.corp_nm||k,c:0};e.c++;m.set(k,e)}});
+if(!m.has(co))co='';$('#cow').hidden=!m.size;
+$('#chips').innerHTML=`<button class="${co?'':'on'}" onclick="pickCo('')">전체 법인 (${m.size})</button>`+[...m].sort((a,b)=>a[1].n.localeCompare(b[1].n,'ko')).map(([k,e])=>`<button class="${k===co?'on':''}" onclick="pickCo('${esc(k)}')">${esc(e.n)} (${e.c})</button>`).join('')}
+function pickCo(c){co=c;buildCo();fillIt();draw()}
+function fillIt(){const m=new Map();rows.forEach(o=>{if(co&&o.corp_cd!==co)return;const k=itm(o);if(k)m.set(k,(m.get(k)||0)+1)});
+if(!m.has(iq))iq='';
+$('#it').innerHTML='<option value="">전체 품목 ('+m.size+'종)</option>'+[...m].sort((a,b)=>a[0].localeCompare(b[0],'ko')).map(([k,n])=>`<option value="${esc(k)}">${esc(k)} (${n}건)</option>`).join('');
+$('#it').value=iq}
 async function page(p,n,extra){
 const u=$('#url').value.trim(),k=$('#key').value.trim();
 const q=[($('#kp').value.trim()||'serviceKey')+'='+encodeURIComponent(k),'returnType=JSON','pageNo='+p,'numOfRows='+n,enc('trd_clcln_ymd')+'='+$('#dt').value,...extra];
@@ -91,34 +126,28 @@ const e=find(j,'returnAuthMsg');if(e)throw new Error(e+' (코드 '+find(j,'retur
 const rc=String(find(j,'resultCode')??''),rm=String(find(j,'resultMsg')??'');
 if(rc&&!/^0+$/.test(rc)&&!/정상|NORMAL|^OK$/i.test(rm))throw new Error((rm||'오류')+' (코드 '+rc+')');
 return{rows:arr(j)||[],total:+find(j,'totalCount')||0}}
-function need(){if(!$('#key').value.trim()){$('#msg').textContent='API 설정에서 인증키를 입력하세요';$('#cfg').hidden=false;return false}return true}
+function need(){if(!$('#key').value.trim()){$('#msg').textContent='설정에서 인증키를 입력하세요';$('#cfg').hidden=false;return false}return true}
 async function load(){
 save();if(!need())return;
-const mk=$('#mk').value.trim();
-if(!mk){$('#msg').textContent='도매시장 코드를 입력하세요 (시장 코드 찾기 버튼 사용 가능)';return}
-const n=+$('#ps').value||1000;rows=[];fillIt();$('#list').innerHTML='';$('#sum').style.display='none';
+const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 선택하세요';return}
+const n=+$('#ps').value||1000;rows=[];$('#list').innerHTML='';$('#sum').style.display='none';$('#cow').hidden=true;
 try{for(let p=1;p<=80;p++){
 const r=await page(p,n,[enc('whsl_mrkt_cd')+'='+encodeURIComponent(mk)]);
 rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/'+r.total+'건';
 if(!r.rows.length||rows.length>=r.total)break}
-if(rows[0]&&rows[0].whsl_mrkt_nm)mkName=rows[0].whsl_mrkt_nm;
-fillIt();draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
-async function findMk(){
-save();if(!need())return;const m=new Map();
-try{for(let p=1;p<=3;p++){const r=await page(p,1000,[]);r.rows.forEach(o=>m.set(o.whsl_mrkt_cd,o.whsl_mrkt_nm));$('#msg').textContent='시장 찾는 중… '+m.size+'곳';if(!r.rows.length)break}
-$('#chips').innerHTML=[...m].map(([c,nm])=>`<button class="g" onclick="$('#mk').value='${esc(c)}';mkName='${esc(nm)}';$('#chips').innerHTML=''">${esc(nm)} (${esc(c)})</button>`).join('');
-$('#msg').textContent=m.size+'곳 발견 (일부 시장만 보일 수 있음). 눌러서 선택하세요'}
-catch(e){$('#msg').textContent='실패: '+e.message}}
+buildCo();fillIt();draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
 function draw(){
-const q=$('#q').value.trim(),so=$('#so').value,P=o=>num(o.scsbd_prc);
-const r=rows.filter(o=>!q||(ex?o.corp_gds_item_nm===q:[o.corp_gds_item_nm,o.corp_gds_vrty_nm,o.gds_sclsf_nm,o.gds_mclsf_nm].some(v=>v&&String(v).includes(q))));
+const so=$('#so').value,P=o=>num(o.scsbd_prc);
+const r=rows.filter(o=>(!co||o.corp_cd===co)&&(!iq||itm(o)===iq));
 if(so==='d')r.sort((a,b)=>P(b)-P(a));else if(so==='a')r.sort((a,b)=>P(a)-P(b));else r.sort((a,b)=>String(a.scsbd_dt).localeCompare(String(b.scsbd_dt)));
 const pr=r.map(P).filter(x=>x>0),s=$('#sum'),m=$('#msg'),bad=m.textContent.startsWith('실패');
-if(pr.length){s.style.display='block';s.innerHTML=`<b>${r.length}건</b> · 최저 ${won(Math.min(...pr))} · 평균 ${won(pr.reduce((a,b)=>a+b,0)/pr.length)} · 최고 ${won(Math.max(...pr))}`}else s.style.display='none';
+if(pr.length){s.style.display='block';s.innerHTML=`<div class="cnt">조건에 맞는 ${r.length}건 기준</div><div class="sg"><div class="av"><span>평균</span><b>${won(pr.reduce((a,b)=>a+b,0)/pr.length)}</b></div><div class="lo"><span>최저</span><b>${won(Math.min(...pr))}</b></div><div class="hi"><span>최고</span><b>${won(Math.max(...pr))}</b></div></div>`}else s.style.display='none';
 if(rows.length&&!bad)m.textContent='전체 '+rows.length+'건 중 '+r.length+'건 (화면에는 최대 500건)';
-if(!rows.length&&!bad)m.textContent='0건입니다. 날짜(어제 버튼)나 시장 코드를 확인하세요';
-$('#list').innerHTML=r.slice(0,500).map(o=>{const v=o.corp_gds_vrty_nm&&o.corp_gds_vrty_nm!==o.corp_gds_item_nm?' ('+esc(o.corp_gds_vrty_nm)+')':'';
+if(!rows.length&&!bad&&$('#mk').value&&!m.textContent.startsWith('불러오는'))m.textContent='0건입니다. 날짜(어제 버튼)를 확인하세요';
+$('#list').innerHTML=r.slice(0,500).map(o=>{const t=itm(o),v=[o.corp_gds_item_nm,o.corp_gds_vrty_nm].find(x=>x&&x!==t);
 const un=nu(o.unit_qty)+String(o.unit_nm??''),qt=num(o.qty),tg=[o.pkg_nm&&'📦 '+o.pkg_nm,qt&&'수량 '+qt.toLocaleString('ko-KR'),o.plor_nm&&'📍 '+o.plor_nm,hm(o.scsbd_dt)&&'🕐 '+hm(o.scsbd_dt)].filter(Boolean);
-return`<div class="row"><div class="nm">${esc(o.corp_gds_item_nm)}${v}</div><div class="pr">${won(o.scsbd_prc)}${un?'<span class="pu"> / '+esc(un)+'</span>':''}</div>${tg.length?'<div class="tg">'+tg.map(t=>'<span>'+esc(t)+'</span>').join('')+'</div>':''}<small>${[o.whsl_mrkt_nm,o.corp_nm].filter(Boolean).map(esc).join(' · ')}</small></div>`}).join('')}
-drawF();
+return`<div class="row"><div class="nm">${esc(t)}${v?' ('+esc(v)+')':''}</div><div class="pr">${won(o.scsbd_prc)}${un?'<span class="pu"> / '+esc(un)+'</span>':''}</div>${tg.length?'<div class="tg">'+tg.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div>':''}<small>${[o.whsl_mrkt_nm,o.corp_nm].filter(Boolean).map(esc).join(' · ')}</small></div>`}).join('')}
+$('#mk').innerHTML='<option value="">시장을 선택하세요</option>'+MKS.split(';').map(g=>{const[r,l]=g.split('|');return`<optgroup label="${r}">`+l.split(',').map(x=>{const[c,n]=x.split(' ');MN[c]=n;return`<option value="${c}">${n}</option>`}).join('')+'</optgroup>'}).join('');
+ids.forEach(i=>$('#'+i).value=C[i]||D[i]||'');
+fs(0);$('#dt').value=dstr(0);drawF();go();
 </script></body></html>
