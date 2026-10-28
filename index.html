@@ -19,6 +19,9 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .row{background:var(--card);border-radius:.6em;padding:.6em .8em;margin:.4em 0}
 .nm{font-size:1.15rem;font-weight:700}.pr{font-size:1.5rem;font-weight:800;color:var(--ac)}
 .row small{color:var(--mu);display:block;font-size:.85rem}
+.pu{font-size:.9rem;font-weight:600;color:var(--mu)}
+.tg{display:flex;flex-wrap:wrap;gap:.35em;margin:.35em 0}
+.tg span{background:var(--bg);border:1px solid var(--mu);border-radius:1em;padding:.1em .65em;font-size:.85rem}
 #msg{color:var(--mu);margin:.4em 0}
 #sum{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.4em 0;display:none}
 </style></head><body>
@@ -75,6 +78,8 @@ const q=$('#q').value.trim();$('#it').value=m.has(q)?q:''}
 const enc=k=>encodeURIComponent('cond['+k+'::EQ]');
 const num=v=>parseFloat(String(v??'').replace(/[^\d.-]/g,''))||0;
 const won=v=>num(v)?Math.round(num(v)).toLocaleString('ko-KR')+'원':'-';
+const nu=v=>{const n=num(v);return n?String(+n.toFixed(2)):''};
+const hm=v=>{v=String(v??'');const m=v.match(/\d{1,2}:\d{2}/);if(m)return m[0];return /^\d{14}$/.test(v)?v.slice(8,10)+':'+v.slice(10,12):''};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function find(o,k){if(o&&typeof o==='object'){if(k in o)return o[k];for(const v of Object.values(o)){const r=find(v,k);if(r!==undefined)return r}}}
 function arr(o){if(Array.isArray(o))return o;if(o&&typeof o==='object'){for(const v of Object.values(o)){const r=arr(v);if(r)return r}}return null}
@@ -114,5 +119,6 @@ if(pr.length){s.style.display='block';s.innerHTML=`<b>${r.length}건</b> · 최�
 if(rows.length&&!bad)m.textContent='전체 '+rows.length+'건 중 '+r.length+'건 (화면에는 최대 500건)';
 if(!rows.length&&!bad)m.textContent='0건입니다. 날짜(어제 버튼)나 시장 코드를 확인하세요';
 $('#list').innerHTML=r.slice(0,500).map(o=>{const v=o.corp_gds_vrty_nm&&o.corp_gds_vrty_nm!==o.corp_gds_item_nm?' ('+esc(o.corp_gds_vrty_nm)+')':'';
-return`<div class="row"><div class="nm">${esc(o.corp_gds_item_nm)}${v}</div><div class="pr">${won(o.scsbd_prc)}</div><small>${esc(o.unit_qty)}${esc(o.unit_nm)} · ${esc(o.pkg_nm)} · 수량 ${esc(o.qty)}</small><small>${esc(o.whsl_mrkt_nm)} · ${esc(o.corp_nm)} · ${esc(o.plor_nm)} · ${esc(o.scsbd_dt)}</small></div>`}).join('')}
+const un=nu(o.unit_qty)+String(o.unit_nm??''),qt=num(o.qty),tg=[o.pkg_nm&&'📦 '+o.pkg_nm,qt&&'수량 '+qt.toLocaleString('ko-KR'),o.plor_nm&&'📍 '+o.plor_nm,hm(o.scsbd_dt)&&'🕐 '+hm(o.scsbd_dt)].filter(Boolean);
+return`<div class="row"><div class="nm">${esc(o.corp_gds_item_nm)}${v}</div><div class="pr">${won(o.scsbd_prc)}${un?'<span class="pu"> / '+esc(un)+'</span>':''}</div>${tg.length?'<div class="tg">'+tg.map(t=>'<span>'+esc(t)+'</span>').join('')+'</div>':''}<small>${[o.whsl_mrkt_nm,o.corp_nm].filter(Boolean).map(esc).join(' · ')}</small></div>`}).join('')}
 </script></body></html>
