@@ -12,7 +12,9 @@ input,select,button{width:100%;padding:.7em;margin:.25em 0;font-size:1rem;border
 button{background:var(--ac);color:#fff;border:0;font-weight:700}
 button.g{background:var(--card);color:var(--fg)}
 .fx{display:flex;gap:.4em}.fx>*{flex:1}
-details{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.5em 0}
+.box{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.5em 0}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:.5em;flex-wrap:wrap}
+button.sm{width:auto;margin:0;padding:.3em .7em;font-size:.8rem;font-weight:400;background:var(--card);color:var(--mu);border:1px solid var(--mu)}
 label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .row{background:var(--card);border-radius:.6em;padding:.6em .8em;margin:.4em 0}
 .nm{font-size:1.15rem;font-weight:700}.pr{font-size:1.5rem;font-weight:800;color:var(--ac)}
@@ -20,16 +22,16 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 #msg{color:var(--mu);margin:.4em 0}
 #sum{background:var(--card);border-radius:.6em;padding:.5em .8em;margin:.4em 0;display:none}
 </style></head><body>
-<h1>🥬 농산물 경매가</h1>
+<div class="hd"><h1>🥬 농산물 경매가</h1><button class="sm" onclick="tog()">⚙ 설정</button></div>
 <div class="fx"><button class="g" onclick="fs(-1)">글씨 작게</button><button class="g" onclick="fs(1)">글씨 크게</button></div>
 <div id="fav"></div>
-<details id="cfg"><summary>API 설정</summary>
+<div id="cfg" class="box" hidden><b>API 설정</b>
 <input id="url" placeholder="API 주소">
 <input id="kp" placeholder="키 파라미터명">
 <input id="key" type="password" placeholder="인증키 (디코딩)">
 <input id="ps" inputmode="numeric" placeholder="페이지 크기 (기본 1000)">
-<button onclick="save();$('#msg').textContent='저장됨'">저장</button>
-</details>
+<button onclick="save();$('#msg').textContent='저장됨';$('#cfg').hidden=true">저장</button>
+</div>
 <label>경매(정산) 일자</label><input id="dt" type="date">
 <div class="fx"><button class="g" onclick="setD(0)">오늘</button><button class="g" onclick="setD(-1)">어제</button></div>
 <label>도매시장 코드</label><input id="mk" inputmode="numeric" placeholder="숫자 코드" oninput="mkName=''">
@@ -51,6 +53,7 @@ try{si=+localStorage.getItem('fs')||2}catch(e){}
 ids.forEach(i=>$('#'+i).value=C[i]||D[i]||'');
 function fs(d){si=Math.max(0,Math.min(SZ.length-1,si+d));document.documentElement.style.fontSize=SZ[si]+'px';try{localStorage.setItem('fs',si)}catch(e){}}
 fs(0);
+function tog(){$('#cfg').hidden=!$('#cfg').hidden}
 function setD(n){const t=new Date();t.setDate(t.getDate()+n);t.setMinutes(t.getMinutes()-t.getTimezoneOffset());$('#dt').value=t.toISOString().slice(0,10)}
 setD(0);
 function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))))}catch(e){}}
@@ -66,7 +69,7 @@ drawF();
 function pick(){const v=$('#it').value;$('#q').value=v;ex=!!v;draw()}
 function typ(){ex=false;const q=$('#q').value.trim();$('#it').value=[...$('#it').options].some(o=>o.value===q)?q:'';draw()}
 function fillIt(){const m=new Map();rows.forEach(o=>{const k=o.corp_gds_item_nm;if(k)m.set(k,(m.get(k)||0)+1)});
-const l=[...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko'));
+const l=[...m].sort((a,b)=>a[0].localeCompare(b[0],'ko'));
 $('#it').innerHTML='<option value="">전체 품목 ('+m.size+'종)</option>'+l.map(([k,n])=>`<option value="${esc(k)}">${esc(k)} (${n}건)</option>`).join('');
 const q=$('#q').value.trim();$('#it').value=m.has(q)?q:''}
 const enc=k=>encodeURIComponent('cond['+k+'::EQ]');
@@ -84,7 +87,7 @@ const e=find(j,'returnAuthMsg');if(e)throw new Error(e+' (코드 '+find(j,'retur
 const rc=String(find(j,'resultCode')??''),rm=String(find(j,'resultMsg')??'');
 if(rc&&!/^0+$/.test(rc)&&!/정상|NORMAL|^OK$/i.test(rm))throw new Error((rm||'오류')+' (코드 '+rc+')');
 return{rows:arr(j)||[],total:+find(j,'totalCount')||0}}
-function need(){if(!$('#key').value.trim()){$('#msg').textContent='API 설정에서 인증키를 입력하세요';$('#cfg').open=true;return false}return true}
+function need(){if(!$('#key').value.trim()){$('#msg').textContent='API 설정에서 인증키를 입력하세요';$('#cfg').hidden=false;return false}return true}
 async function load(){
 save();if(!need())return;
 const mk=$('#mk').value.trim();
