@@ -35,15 +35,16 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 <label>도매시장 코드</label><input id="mk" inputmode="numeric" placeholder="숫자 코드" oninput="mkName=''">
 <button class="g" onclick="findMk()">시장 코드 찾기</button>
 <div id="chips"></div>
-<label>품목 (비우면 전체)</label><input id="q" placeholder="예: 배추" oninput="draw()">
+<label>품목 직접 입력 (비우면 전체)</label><input id="q" placeholder="예: 배추" oninput="typ()">
 <button onclick="load()">전체 불러오기</button>
+<label>품목 선택 (불러온 뒤 목록이 나옵니다)</label><select id="it" onchange="pick()"><option value="">전체 품목</option></select>
 <button class="g" onclick="addF()">⭐ 이 시장·품목을 즐겨찾기에 저장</button>
 <select id="so" onchange="draw()"><option value="t">시간순</option><option value="d">가격 높은순</option><option value="a">가격 낮은순</option></select>
 <div id="msg"></div><div id="sum"></div><div id="list"></div>
 <script>
 const $=s=>document.querySelector(s),ids=['url','kp','key','ps','mk','q'],SZ=[16,19,22,26,30,34];
 const D={url:'https://apis.data.go.kr/B552845/katRealTime2/trades2',kp:'serviceKey',ps:'1000'};
-let C={},rows=[],F=[],mkName='',si=2;
+let C={},rows=[],F=[],mkName='',si=2,ex=false;
 try{C=JSON.parse(localStorage.getItem('cfg')||'{}')}catch(e){}
 try{F=JSON.parse(localStorage.getItem('fav')||'[]')}catch(e){}
 try{si=+localStorage.getItem('fs')||2}catch(e){}
@@ -60,12 +61,18 @@ if(!mk){$('#msg').textContent='도매시장 코드를 먼저 입력하세요';re
 if(F.some(f=>f.mk===mk&&f.q===q)){$('#msg').textContent='이미 저장되어 있습니다';return}
 F.push({mk,mn:mkName||(rows[0]&&rows[0].whsl_mrkt_nm)||'',q});sf();drawF();$('#msg').textContent='즐겨찾기에 저장했습니다'}
 function delF(i){if(confirm('즐겨찾기를 삭제할까요?')){F.splice(i,1);sf();drawF()}}
-function useF(i){const f=F[i];$('#mk').value=f.mk;$('#q').value=f.q;mkName=f.mn;load()}
+function useF(i){const f=F[i];ex=false;$('#mk').value=f.mk;$('#q').value=f.q;mkName=f.mn;load()}
 drawF();
+function pick(){const v=$('#it').value;$('#q').value=v;ex=!!v;draw()}
+function typ(){ex=false;const q=$('#q').value.trim();$('#it').value=[...$('#it').options].some(o=>o.value===q)?q:'';draw()}
+function fillIt(){const m=new Map();rows.forEach(o=>{const k=o.corp_gds_item_nm;if(k)m.set(k,(m.get(k)||0)+1)});
+const l=[...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko'));
+$('#it').innerHTML='<option value="">전체 품목 ('+m.size+'종)</option>'+l.map(([k,n])=>`<option value="${esc(k)}">${esc(k)} (${n}건)</option>`).join('');
+const q=$('#q').value.trim();$('#it').value=m.has(q)?q:''}
 const enc=k=>encodeURIComponent('cond['+k+'::EQ]');
 const num=v=>parseFloat(String(v??'').replace(/[^\d.-]/g,''))||0;
 const won=v=>num(v)?Math.round(num(v)).toLocaleString('ko-KR')+'원':'-';
-const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function find(o,k){if(o&&typeof o==='object'){if(k in o)return o[k];for(const v of Object.values(o)){const r=find(v,k);if(r!==undefined)return r}}}
 function arr(o){if(Array.isArray(o))return o;if(o&&typeof o==='object'){for(const v of Object.values(o)){const r=arr(v);if(r)return r}}return null}
 async function page(p,n,extra){
@@ -82,13 +89,13 @@ async function load(){
 save();if(!need())return;
 const mk=$('#mk').value.trim();
 if(!mk){$('#msg').textContent='도매시장 코드를 입력하세요 (시장 코드 찾기 버튼 사용 가능)';return}
-const n=+$('#ps').value||1000;rows=[];$('#list').innerHTML='';$('#sum').style.display='none';
+const n=+$('#ps').value||1000;rows=[];fillIt();$('#list').innerHTML='';$('#sum').style.display='none';
 try{for(let p=1;p<=80;p++){
 const r=await page(p,n,[enc('whsl_mrkt_cd')+'='+encodeURIComponent(mk)]);
 rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/'+r.total+'건';
 if(!r.rows.length||rows.length>=r.total)break}
 if(rows[0]&&rows[0].whsl_mrkt_nm)mkName=rows[0].whsl_mrkt_nm;
-draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
+fillIt();draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
 async function findMk(){
 save();if(!need())return;const m=new Map();
 try{for(let p=1;p<=3;p++){const r=await page(p,1000,[]);r.rows.forEach(o=>m.set(o.whsl_mrkt_cd,o.whsl_mrkt_nm));$('#msg').textContent='시장 찾는 중… '+m.size+'곳';if(!r.rows.length)break}
@@ -97,7 +104,7 @@ $('#msg').textContent=m.size+'곳 발견 (일부 시장만 보일 수 있음). �
 catch(e){$('#msg').textContent='실패: '+e.message}}
 function draw(){
 const q=$('#q').value.trim(),so=$('#so').value,P=o=>num(o.scsbd_prc);
-const r=rows.filter(o=>!q||[o.corp_gds_item_nm,o.corp_gds_vrty_nm,o.gds_sclsf_nm,o.gds_mclsf_nm].some(v=>v&&String(v).includes(q)));
+const r=rows.filter(o=>!q||(ex?o.corp_gds_item_nm===q:[o.corp_gds_item_nm,o.corp_gds_vrty_nm,o.gds_sclsf_nm,o.gds_mclsf_nm].some(v=>v&&String(v).includes(q))));
 if(so==='d')r.sort((a,b)=>P(b)-P(a));else if(so==='a')r.sort((a,b)=>P(a)-P(b));else r.sort((a,b)=>String(a.scsbd_dt).localeCompare(String(b.scsbd_dt)));
 const pr=r.map(P).filter(x=>x>0),s=$('#sum'),m=$('#msg'),bad=m.textContent.startsWith('실패');
 if(pr.length){s.style.display='block';s.innerHTML=`<b>${r.length}건</b> · 최저 ${won(Math.min(...pr))} · 평균 ${won(pr.reduce((a,b)=>a+b,0)/pr.length)} · 최고 ${won(Math.max(...pr))}`}else s.style.display='none';
