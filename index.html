@@ -53,7 +53,7 @@ const q=[($('#kp').value.trim()||'serviceKey')+'='+encodeURIComponent(k),'return
 const r=await fetch(u+(u.includes('?')?'&':'?')+q.join('&'));
 let j;try{j=JSON.parse(await r.text())}catch(e){throw new Error('JSON이 아닌 응답입니다')}
 const e=find(j,'returnAuthMsg');if(e)throw new Error(e+' (코드 '+find(j,'returnReasonCode')+')');
-const rc=find(j,'resultCode');if(rc&&rc!=='00'&&rc!==0)throw new Error(find(j,'resultMsg')||'오류 '+rc);
+const rc=String(find(j,'resultCode')??''),rm=String(find(j,'resultMsg')??'');if(rc&&!/^0+$/.test(rc)&&!/정상|NORMAL|^OK$/i.test(rm))throw new Error((rm||'오류')+' (코드 '+rc+')');
 return{rows:arr(j)||[],total:+find(j,'totalCount')||0}}
 function need(){if(!$('#key').value.trim()){$('#msg').textContent='API 설정에서 인증키를 입력하세요';$('#cfg').open=true;return false}return true}
 async function load(){
