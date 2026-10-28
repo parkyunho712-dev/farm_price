@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>농산물 경매가</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--card:#f1f4ef;--ac:#2e7d32;--mu:#6b7280}
+@media(prefers-color-scheme:dark){:root{--bg:#121412;--fg:#eee;--card:#1e221d;--ac:#81c784;--mu:#9ca3af}}
+*{box-sizing:border-box}
+body{margin:0;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,sans-serif}
+h1{font-size:20px;margin:14px 0}
+input,select,button{width:100%;padding:10px;margin:4px 0;font-size:15px;border-radius:8px;border:1px solid var(--mu);background:var(--bg);color:var(--fg)}
+button{background:var(--ac);color:#fff;border:0;font-weight:600}
+button.g{background:var(--card);color:var(--fg)}
+details{background:var(--card);border-radius:10px;padding:8px 12px;margin:8px 0}
+.row{background:var(--card);border-radius:10px;padding:10px 12px;margin:6px 0}
+.row b{font-size:17px}.row small{color:var(--mu);display:block}
+#msg{color:var(--mu);font-size:14px;margin:6px 0}
+</style></head><body>
+<h1>🥬 농산물 경매가</h1>
+<details id="cfg"><summary>API 설정</summary>
+<input id="url" placeholder="API 엔드포인트 URL (https://...)">
+<input id="kp" placeholder="키 파라미터명 (기본 serviceKey)">
+<input id="key" type="password" placeholder="인증키 (디코딩된 원본 키)">
+<input id="ex" placeholder="추가 쿼리 예: pageNo=1&numOfRows=100&_type=json">
+<input id="f1" placeholder="품목 필드명 (비우면 자동 표시)">
+<input id="f2" placeholder="가격 필드명">
+<input id="f3" placeholder="보조 필드명 (시장·단위 등)">
+<button onclick="save()">저장</button>
+<button class="g" onclick="demo()">예시 데이터 보기</button>
+</details>
+<button onclick="load()">시세 불러오기</button>
+<input id="q" placeholder="품목 검색" oninput="draw()">
+<select id="so" onchange="draw()"><option value="">정렬 없음</option><option value="d">가격 높은순</option><option value="a">가격 낮은순</option></select>
+<div id="msg"></div><div id="list"></div>
+<script>
+const $=s=>document.querySelector(s),ids=['url','kp','key','ex','f1','f2','f3'];
+let rows=[];
+try{const c=JSON.parse(localStorage.getItem('cfg')||'{}');ids.forEach(i=>$('#'+i).value=c[i]||'')}catch(e){}
+function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries(ids.map(i=>[i,$('#'+i).value.trim()]))));$('#msg').textContent='저장됨';$('#cfg').open=false}catch(e){$('#msg').textContent='저장 실패'}}
+function demo(){rows=[{품목:'사과(부사)',가격:'48,000',시장:'가락 · 10kg'},{품목:'배추',가격:'9,500',시장:'가락 · 10kg'},{품목:'양파',가격:'14,200',시장:'구리 · 15kg'}];$('#f1').value='품목';$('#f2').value='가격';$('#f3').value='시장';$('#msg').textContent='예시 데이터입니다(실제 시세 아님)';draw()}
+function arr(o){if(Array.isArray(o))return o;if(o&&typeof o==='object'){for(const v of Object.values(o)){const r=arr(v);if(r)return r}}return null}
+function parse(t){t=t.trim();if(t[0]==='{'||t[0]==='['){const j=JSON.parse(t);return arr(j)||[j]}
+const x=new DOMParser().parseFromString(t,'text/xml');
+return [...x.querySelectorAll('item')].map(e=>Object.fromEntries([...e.children].map(c=>[c.tagName,c.textContent])))}
+async function load(){
+const u=$('#url').value.trim();if(!u){$('#msg').textContent='API 설정에서 URL을 입력하세요';$('#cfg').open=true;return}
+const q=[];const k=$('#key').value.trim();
+if(k)q.push(($('#kp').value.trim()||'serviceKey')+'='+encodeURIComponent(k));
+if($('#ex').value.trim())q.push($('#ex').value.trim());
+$('#msg').textContent='불러오는 중…';
+try{const r=await fetch(u+(u.includes('?')?'&':'?')+q.join('&'));
+const t=typeof r.text==='function'?await r.text():String(r);
+rows=parse(t);$('#msg').textContent=rows.length+'건';draw()}
+catch(e){$('#msg').textContent='실패: '+e.message+' (키·URL·필드 확인, 브라우저에서는 CORS로 막힐 수 있음)'}}
+const num=v=>parseFloat(String(v).replace(/[^\d.-]/g,''))||0;
+function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function draw(){
+const f1=$('#f1').value.trim(),f2=$('#f2').value.trim(),f3=$('#f3').value.trim(),kw=$('#q').value.trim(),so=$('#so').value;
+let r=rows.filter(o=>!kw||JSON.stringify(o).includes(kw));
+if(so&&f2)r=[...r].sort((a,b)=>so==='d'?num(b[f2])-num(a[f2]):num(a[f2])-num(b[f2]));
+$('#list').innerHTML=r.slice(0,300).map(o=>f1&&o[f1]!==undefined
+?`<div class="row"><b>${esc(o[f1])}</b> · ${esc(o[f2])}<small>${esc(o[f3])}</small></div>`
+:`<div class="row"><small>${Object.entries(o).slice(0,6).map(([k,v])=>esc(k)+': '+esc(v)).join('<br>')}</small></div>`).join('')}
+</script></body></html>
