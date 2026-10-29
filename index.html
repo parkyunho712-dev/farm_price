@@ -44,6 +44,10 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .cg button.sel{background:var(--ac);color:#fff}
 .dm{font-size:1.4rem;font-weight:700;text-align:center;margin:.6em 0 1em;white-space:pre-line;line-height:1.5}
 #dlg button{padding:.9em;font-size:1.3rem}
+.dn{display:flex;gap:.4em;align-items:center;margin:.4em 0}
+.dn b{flex:2;text-align:center;font-size:1.1rem}
+.dn button{flex:1;margin:0;padding:.7em .3em}
+button:disabled{opacity:.35}
 .cg .dw{text-align:center;font-size:.9rem;color:var(--mu)}
 </style></head><body>
 <div class="hd"><h1>🥬 농산물 경매가</h1><button class="sm" onclick="tog()">⚙ 설정</button></div>
@@ -57,7 +61,6 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 <button onclick="save();$('#msg').textContent='저장됨';$('#cfg').hidden=true">저장</button>
 </div>
 <label>경매(정산) 일자</label><input id="dt" readonly onclick="openCal()">
-<div class="fx"><button class="g" onclick="setD(0)">오늘</button><button class="g" onclick="setD(-1)">어제</button></div>
 <label>도매시장 (선택하면 자동으로 불러옵니다)</label>
 <select id="mk" onchange="onMk()"></select>
 <div id="cow" hidden><label>도매법인</label><div id="chips" class="chips"></div></div>
@@ -68,7 +71,9 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 <button class="g" onclick="load([])">🔄 시장 전체 불러오기</button>
 <button class="g" onclick="addF()">⭐ 지금 선택을 즐겨찾기에 저장</button>
 <select id="so" onchange="draw()"><option value="d">가격 높은순</option><option value="a">가격 낮은순</option><option value="t">시간순</option></select>
-<div id="msg"></div><div id="sum"></div><div id="list"></div>
+<div id="msg"></div><div id="sum"></div>
+<div id="dn" class="dn" hidden><button class="g" onclick="mv(-1)">◀ 전일</button><b id="dd"></b><button class="g" id="nx" onclick="mv(1)">다음일 ▶</button></div>
+<div id="list"></div>
 <div id="dlg" hidden><div class="cb"><div id="dm" class="dm"></div><div class="fx"><button class="g" onclick="dno()">아니오</button><button onclick="dyes()">예</button></div></div></div>
 <div id="cal" hidden><div class="cb">
 <div class="fx"><button class="g" onclick="cm(-1)">◀</button><b id="ct"></b><button class="g" onclick="cm(1)">▶</button></div>
@@ -97,7 +102,11 @@ function save(){try{localStorage.setItem('cfg',JSON.stringify(Object.fromEntries
 function sf(){try{localStorage.setItem('fav',JSON.stringify(F))}catch(e){}}
 const dstr=n=>{const t=new Date();t.setDate(t.getDate()+n);t.setMinutes(t.getMinutes()-t.getTimezoneOffset());return t.toISOString().slice(0,10)};
 function go(){if($('#mk').value&&$('#key').value.trim())load()}
-function setD(n){$('#dt').value=dstr(n);go()}
+const pdt=v=>{const p=v.split('-');return new Date(+p[0],+p[1]-1,+p[2])};
+const fdt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function mv(n){const d=pdt($('#dt').value||dstr(0));d.setDate(d.getDate()+n);$('#dt').value=fdt(d);dnav();go()}
+function dnav(){const v=$('#dt').value;$('#dn').hidden=!($('#mk').value&&v);if(!v)return;
+$('#dd').textContent=v+' ('+'일월화수목금토'[pdt(v).getDay()]+')';$('#nx').disabled=v>=dstr(0)}
 function openCal(){const p=($('#dt').value||dstr(0)).split('-');cy=+p[0];cmn=+p[1]-1;rc();$('#cal').hidden=false}
 function cm(n){cmn+=n;if(cmn<0){cmn=11;cy--}if(cmn>11){cmn=0;cy++}rc()}
 function rc(){$('#ct').textContent=cy+'년 '+(cmn+1)+'월';
@@ -105,8 +114,8 @@ const f=new Date(cy,cmn,1).getDay(),n=new Date(cy,cmn+1,0).getDate(),sv=$('#dt')
 let h='일월화수목금토'.split('').map(x=>`<div class="dw">${x}</div>`).join('')+'<div></div>'.repeat(f);
 for(let d=1;d<=n;d++){const v=cy+'-'+String(cmn+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');h+=`<button class="${v===sv?'sel':''}" onclick="pd('${v}')">${d}</button>`}
 $('#cg').innerHTML=h}
-function pd(v){$('#dt').value=v;$('#cal').hidden=true;go()}
-function onMk(){fx=[];co='';lq='';mq='';iq='';rows=[];$('#list').innerHTML='';$('#sum').style.display='none';buildCo();fillIt();if($('#mk').value)go();else $('#msg').textContent=''}
+function pd(v){$('#dt').value=v;$('#cal').hidden=true;dnav();go()}
+function onMk(){dnav();fx=[];co='';lq='';mq='';iq='';rows=[];$('#list').innerHTML='';$('#sum').style.display='none';buildCo();fillIt();if($('#mk').value)go();else $('#msg').textContent=''}
 function drawF(){$('#fav').innerHTML=F.length?'<label>⭐ 즐겨찾기 (누르면 바로 조회)</label>'+F.map((f,i)=>`<div class="fx"><button style="flex:5" onclick="useF(${i})">${esc(f.mn||f.mk)}${f.cn?' · '+esc(f.cn):''} · ${esc(f.q||f.m||f.l||'전체 품목')}</button><button class="g" style="flex:1" onclick="delF(${i})">✕</button></div>`).join(''):''}
 function addF(){const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 먼저 선택하세요';return}
 if(F.some(f=>f.mk===mk&&f.q===iq&&f.co===co&&(f.l||'')===lq&&(f.m||'')===mq)){$('#msg').textContent='이미 저장되어 있습니다';return}
@@ -152,13 +161,14 @@ rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/
 if(!r.rows.length||rows.length>=r.total)break}
 buildCo();fillIt();draw()}catch(e){$('#msg').textContent='실패: '+e.message;draw()}}
 function draw(){
+dnav();
 const so=$('#so').value,P=o=>num(o.scsbd_prc);
 const r=rows.filter(o=>(!co||o.corp_cd===co)&&(!lq||L(o)===lq)&&(!mq||M(o)===mq)&&(!iq||itm(o)===iq));
 if(so==='d')r.sort((a,b)=>P(b)-P(a));else if(so==='a')r.sort((a,b)=>P(a)-P(b));else r.sort((a,b)=>String(a.scsbd_dt).localeCompare(String(b.scsbd_dt)));
 const pr=r.map(P).filter(x=>x>0),s=$('#sum'),m=$('#msg'),bad=m.textContent.startsWith('실패');
 if(pr.length){s.style.display='block';s.innerHTML=`<div class="cnt">조건에 맞는 ${r.length}건 기준</div><div class="sg"><div class="av"><span>평균</span><b>${won(pr.reduce((a,b)=>a+b,0)/pr.length)}</b></div><div class="lo"><span>최저</span><b>${won(Math.min(...pr))}</b></div><div class="hi"><span>최고</span><b>${won(Math.max(...pr))}</b></div></div>`}else s.style.display='none';
 if(rows.length&&!bad)m.textContent=(fx.length?'⚡ 선택한 조건만 빠르게 불러옴 · 불러온 ':'전체 ')+rows.length+'건 중 '+r.length+'건 (화면에는 최대 500건)';
-if(!rows.length&&!bad&&$('#mk').value&&!m.textContent.startsWith('불러오는'))m.textContent='0건입니다. 날짜(어제 버튼)를 확인하세요';
+if(!rows.length&&!bad&&$('#mk').value&&!m.textContent.startsWith('불러오는'))m.textContent='0건입니다. 전일 버튼으로 이전 날짜를 확인해 보세요';
 $('#list').innerHTML=r.slice(0,500).map(o=>{const t=itm(o),v=[o.corp_gds_item_nm,o.corp_gds_vrty_nm].find(x=>x&&x!==t);
 const un=nu(o.unit_qty)+String(o.unit_nm??''),qt=num(o.qty),tg=[o.pkg_nm&&'📦 '+o.pkg_nm,qt&&'수량 '+qt.toLocaleString('ko-KR'),o.plor_nm&&'📍 '+o.plor_nm,hm(o.scsbd_dt)&&'🕐 '+hm(o.scsbd_dt)].filter(Boolean);
 return`<div class="row"><div class="nm">${esc(t)}${v?' ('+esc(v)+')':''}</div><div class="pr">${won(o.scsbd_prc)}${un?'<span class="pu"> / '+esc(un)+'</span>':''}</div>${tg.length?'<div class="tg">'+tg.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div>':''}<small>${[L(o),M(o)].filter(Boolean).join(' › ')}</small><small>${[o.whsl_mrkt_nm,o.corp_nm].filter(Boolean).map(esc).join(' · ')}</small></div>`}).join('')}
