@@ -26,7 +26,8 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .pu{font-size:.9rem;font-weight:600;color:var(--mu)}
 .tg{display:flex;flex-wrap:wrap;gap:.35em;margin:.35em 0}
 .tg span{background:var(--bg);border:1px solid var(--mu);border-radius:1em;padding:.1em .65em;font-size:.85rem}
-#msg{color:var(--mu);margin:.4em 0}
+#msg{color:var(--mu);margin:.4em 0;min-height:2.9em}
+#list{min-height:70vh}
 #sum{margin:.5em 0;display:none}
 .cnt{font-size:.85rem;color:var(--mu);margin-bottom:.3em}
 .sg{display:grid;grid-template-columns:1fr 1fr;gap:.4em}
@@ -160,12 +161,13 @@ async function load(f){
 if(f!==undefined)fx=f;
 save();if(!need())return;
 const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 선택하세요';return}
-const n=+$('#ps').value||1000;rows=[];$('#list').innerHTML='';$('#sum').style.display='none';$('#cow').hidden=true;
+const n=+$('#ps').value||1000;const dn=$('#dn'),t0=dn.hidden?null:dn.getBoundingClientRect().top;rows=[];$('#list').style.opacity=.4;$('#sum').style.opacity=.4;
 try{for(let p=1;p<=80;p++){
 const r=await page(p,n,[enc('whsl_mrkt_cd')+'='+encodeURIComponent(mk),...fx]);
 rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/'+r.total+'건';
 if(!r.rows.length||rows.length>=r.total)break}
-buildCo(1);fillIt(1);$('#msg').textContent='';draw()}catch(e){$('#msg').textContent='실패: '+e.message;buildCo(1);fillIt(1);draw()}}
+buildCo(1);fillIt(1);$('#msg').textContent='';draw();fin(t0)}catch(e){$('#msg').textContent='실패: '+e.message;buildCo(1);fillIt(1);draw();fin(t0)}}
+function fin(t0){$('#list').style.opacity='';$('#sum').style.opacity='';const dn=$('#dn');if(t0!==null&&!dn.hidden){const d=dn.getBoundingClientRect().top-t0;if(d)window.scrollBy(0,d)}}
 function draw(){
 dnav();
 const so=$('#so').value,P=o=>num(o.scsbd_prc);
@@ -173,7 +175,7 @@ const r=rows.filter(o=>(!co||o.corp_cd===co)&&(!lq||L(o)===lq)&&(!mq||M(o)===mq)
 if(so==='d')r.sort((a,b)=>P(b)-P(a));else if(so==='a')r.sort((a,b)=>P(a)-P(b));else r.sort((a,b)=>String(b.scsbd_dt).localeCompare(String(a.scsbd_dt)));
 const pr=r.map(P).filter(x=>x>0),s=$('#sum'),m=$('#msg'),bad=m.textContent.startsWith('실패');
 if(pr.length){s.style.display='block';s.innerHTML=`<div class="cnt">조건에 맞는 ${r.length}건 기준</div><div class="sg"><div class="av"><span>평균</span><b>${won(pr.reduce((a,b)=>a+b,0)/pr.length)}</b></div><div class="lo"><span>최저</span><b>${won(Math.min(...pr))}</b></div><div class="hi"><span>최고</span><b>${won(Math.max(...pr))}</b></div></div>`}else s.style.display='none';
-if(rows.length&&!bad)m.textContent=(fx.length?'⚡ 선택한 조건만 빠르게 불러옴 · 불러온 ':'전체 ')+rows.length+'건 중 '+r.length+'건 (화면에는 최대 500건)';
+if(rows.length&&!bad)m.textContent=(fx.length?'⚡ 빠른 조회 · ':'')+rows.length+'건 중 '+r.length+'건'+(r.length>500?' (최대 500건 표시)':'');
 if(!rows.length&&!bad&&$('#mk').value&&!m.textContent.startsWith('불러오는'))m.textContent='0건입니다. 전일 버튼으로 이전 날짜를 확인해 보세요';
 $('#list').innerHTML=r.slice(0,500).map(o=>{const t=itm(o),v=[o.corp_gds_item_nm,o.corp_gds_vrty_nm].find(x=>x&&x!==t);
 const un=nu(o.unit_qty)+String(o.unit_nm??''),qt=num(o.qty),tg=[o.pkg_nm&&'📦 '+o.pkg_nm,qt&&'수량 '+qt.toLocaleString('ko-KR'),o.plor_nm&&'📍 '+o.plor_nm,hm(o.scsbd_dt)&&'🕐 '+hm(o.scsbd_dt)].filter(Boolean);
