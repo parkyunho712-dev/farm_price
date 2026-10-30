@@ -20,6 +20,8 @@ label{font-size:.85rem;color:var(--mu);display:block;margin-top:.4em}
 .chips{display:flex;flex-wrap:wrap;gap:.4em;margin:.3em 0}
 .chips button{width:auto;margin:0;padding:.5em .9em;background:var(--card);color:var(--fg);border:1px solid var(--mu);font-weight:600}
 .chips button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+select.ok{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:700}
+select.ok option{background:var(--bg);color:var(--fg);font-weight:400}
 .row{background:var(--card);border-radius:.6em;padding:.6em .8em;margin:.4em 0}
 .nm{font-size:1.15rem;font-weight:700}.pr{font-size:1.5rem;font-weight:800;color:var(--ac)}
 .row small{color:var(--mu);display:block;font-size:.85rem}
@@ -64,7 +66,7 @@ button:disabled{opacity:.35}
 <label>경매(정산) 일자</label><input id="dt" readonly onclick="openCal()">
 <label>도매시장 (선택하면 자동으로 불러옵니다)</label>
 <select id="mk" onchange="onMk()"></select>
-<div id="cow" hidden><label>도매법인</label><div id="chips" class="chips"></div></div>
+<div id="cow" hidden><label>도매법인</label><select id="co" onchange="pickCo(this.value)"></select></div>
 <label>상품 분류 (대 → 중 → 소)</label>
 <select id="lc" onchange="lq=this.value;mq='';iq='';fillIt();sel2()"><option value="">전체 대분류</option></select>
 <select id="mc" onchange="mq=this.value;iq='';fillIt();sel2()"><option value="">전체 중분류</option></select>
@@ -84,7 +86,7 @@ const $=s=>document.querySelector(s),ids=['url','kp','key','ps','mk'],SZ=[16,19,
 const D={url:'https://apis.data.go.kr/B552845/katRealTime2/trades2',kp:'serviceKey',ps:'1000'};
 const MKS='서울특별시|110001 서울가락,110008 서울강서;부산광역시|210001 부산엄궁,210005 부산국제수산,210009 부산반여;대구광역시|220001 대구북부;인천광역시|230001 인천남촌,230003 인천삼산;광주광역시|240001 광주각화,240004 광주서부;대전광역시|250001 대전오정,250003 대전노은;울산광역시|380201 울산;경기도|310101 수원,310401 안양,310901 안산,311201 구리;강원특별자치도|320101 춘천,320201 원주,320301 강릉;충청북도|330101 청주,330201 충주;충청남도|340101 천안;전북특별자치도|350101 전주,350301 익산,350402 정읍;전라남도|360301 순천;경상북도|370101 포항,370401 안동,371501 구미;경상남도|380101 창원팔용,380303 창원내서,380401 진주';
 const MN={};
-let C={},rows=[],F=[],si=2,co='',con='',lq='',mq='',iq='',lcd='',mcd='',scd='',fx=[],cy=0,cmn=0;
+let C={},rows=[],F=[],si=2,co='',con='',lq='',mq='',iq='',lcd='',mcd='',scd='',fx=[],loaded=false,cy=0,cmn=0;
 try{C=JSON.parse(localStorage.getItem('cfg')||'{}')}catch(e){}
 try{F=JSON.parse(localStorage.getItem('fav')||'[]')}catch(e){}
 try{si=+localStorage.getItem('fs')||2}catch(e){}
@@ -121,7 +123,7 @@ let h='일월화수목금토'.split('').map(x=>`<div class="dw">${x}</div>`).joi
 for(let d=1;d<=n;d++){const v=cy+'-'+String(cmn+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');h+=`<button class="${v===sv?'sel':''}" onclick="pd('${v}')">${d}</button>`}
 $('#cg').innerHTML=h}
 function pd(v){$('#dt').value=v;$('#cal').hidden=true;dnav();goF()}
-function onMk(){dnav();fx=[];lcd=mcd=scd='';co='';con='';lq='';mq='';iq='';rows=[];$('#list').innerHTML='';$('#sum').style.display='none';buildCo();fillIt();if($('#mk').value)go();else $('#msg').textContent=''}
+function onMk(){loaded=false;dnav();fx=[];lcd=mcd=scd='';co='';con='';lq='';mq='';iq='';rows=[];$('#list').innerHTML='';$('#sum').style.display='none';buildCo();fillIt();if($('#mk').value)go();else $('#msg').textContent=''}
 function drawF(){$('#fav').innerHTML=F.length?'<label>⭐ 즐겨찾기 (누르면 바로 조회)</label>'+F.map((f,i)=>`<div class="fx"><button style="flex:5" onclick="useF(${i})">${esc(f.mn||f.mk)}${f.cn?' · '+esc(f.cn):''} · ${esc(f.q||f.m||f.l||'전체 품목')}</button><button class="g" style="flex:1" onclick="delF(${i})">✕</button></div>`).join(''):''}
 function addF(){const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 먼저 선택하세요';return}
 if(F.some(f=>f.mk===mk&&f.q===iq&&f.co===co&&(f.l||'')===lq&&(f.m||'')===mq)){$('#msg').textContent='이미 저장되어 있습니다';return}
@@ -139,7 +141,8 @@ return load([e('corp_cd',f.co),e('gds_lclsf_cd',f.lcd),e('gds_mclsf_cd',f.mcd),e
 function buildCo(k){const m=new Map();rows.forEach(o=>{const k=o.corp_cd;if(k){const e=m.get(k)||{n:o.corp_nm||k,c:0};e.c++;m.set(k,e)}});
 if(co&&!m.has(co)){if(k)m.set(co,{n:con||co,c:0});else co=''}
 $('#cow').hidden=!m.size;
-$('#chips').innerHTML=`<button class="${co?'':'on'}" onclick="pickCo('')">전체 법인 (${m.size})</button>`+[...m].sort((a,b)=>a[1].n.localeCompare(b[1].n,'ko')).map(([k,e])=>`<button class="${k===co?'on':''}" onclick="pickCo('${esc(k)}')">${esc(e.n)} (${e.c})</button>`).join('')}
+$('#co').innerHTML=`<option value="">전체 법인 (${m.size}곳)</option>`+[...m].sort((a,b)=>a[1].n.localeCompare(b[1].n,'ko')).map(([c,e])=>`<option value="${esc(c)}">${esc(e.n)} (${e.c}건)</option>`).join('');
+$('#co').value=co;$('#co').className=loaded&&rows.length?'ok':''}
 function pickCo(c){co=c;con=(c&&rows.find(o=>o.corp_cd===c)||{}).corp_nm||'';buildCo();fillIt();sel2()}
 function sel(id,lab,m,cur){$(id).innerHTML=`<option value="">전체 ${lab} (${m.size}종)</option>`+[...m].sort((a,b)=>a[0].localeCompare(b[0],'ko')).map(([k,n])=>`<option value="${esc(k)}">${esc(k)} (${n}건)</option>`).join('');$(id).value=cur}
 function fillIt(k){const cnt=(a,f)=>{const m=new Map();a.forEach(o=>{const k=f(o);if(k)m.set(k,(m.get(k)||0)+1)});return m};
@@ -161,12 +164,12 @@ async function load(f){
 if(f!==undefined)fx=f;
 save();if(!need())return;
 const mk=$('#mk').value;if(!mk){$('#msg').textContent='도매시장을 선택하세요';return}
-const n=+$('#ps').value||1000;const dn=$('#dn'),t0=dn.hidden?null:dn.getBoundingClientRect().top;rows=[];$('#list').style.opacity=.4;$('#sum').style.opacity=.4;
+const n=+$('#ps').value||1000;const dn=$('#dn'),t0=dn.hidden?null:dn.getBoundingClientRect().top;loaded=false;$('#co').className='';rows=[];$('#list').style.opacity=.4;$('#sum').style.opacity=.4;
 try{for(let p=1;p<=80;p++){
 const r=await page(p,n,[enc('whsl_mrkt_cd')+'='+encodeURIComponent(mk),...fx]);
 rows.push(...r.rows);$('#msg').textContent='불러오는 중… '+rows.length+'/'+r.total+'건';
 if(!r.rows.length||rows.length>=r.total)break}
-buildCo(1);fillIt(1);$('#msg').textContent='';draw();fin(t0)}catch(e){$('#msg').textContent='실패: '+e.message;buildCo(1);fillIt(1);draw();fin(t0)}}
+loaded=true;buildCo(1);fillIt(1);$('#msg').textContent='';draw();fin(t0)}catch(e){loaded=false;$('#msg').textContent='실패: '+e.message;buildCo(1);fillIt(1);draw();fin(t0)}}
 function fin(t0){$('#list').style.opacity='';$('#sum').style.opacity='';const dn=$('#dn');if(t0!==null&&!dn.hidden){const d=dn.getBoundingClientRect().top-t0;if(d)window.scrollBy(0,d)}}
 function draw(){
 dnav();
